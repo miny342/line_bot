@@ -23,8 +23,10 @@ services:
       - ./nginx/conf:/etc/nginx/conf.d
       #- ./nginx/uwsgi_params:/etc/nginx/uwsgi_params
       - ./django/static:/static
+      - /etc/lego:/etc/lego
     ports:
-      - "8000:8000"
+      - "80:80"
+      - "443:443"
     depends_on:
       - django
       - db
