@@ -6,3 +6,4 @@ secret.py
 db.sqlite3
 media
 .env
+.vscode
