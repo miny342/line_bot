@@ -66,11 +66,13 @@ def get_response_text(evt, user):
 
     if user['state'] == ">> utf8-encode":
         response_text = evt_text.encode('utf-8').hex()
+        user["state"] = None
     elif user['state'] == ">> utf8-decode":
         try:
             response_text = bytes.fromhex(evt_text).decode('utf-8')
         except:
             response_text = "失敗しちゃった…"
+        user["state"] = None
     elif user['state'] in [">> xy", ">> x/y", ">> x^y mod z"]:
         try:
             tmp = int(evt_text, user["bit_state"])
@@ -93,7 +95,8 @@ def get_response_text(evt, user):
                 user["state"] = None
                 del user["x"], user["y"]
         elif user["state"] == ">> x^y mod z":
-            response_text = hex(pow(user["x"], user["y"], tmp))
+            response_text = hex(pow(user["x"], user["y"], tmp))[2:]
+            user["state"] == None
             del user["x"], user["y"]
 
     if evt_text == ">> utf8-encode":
