@@ -118,7 +118,6 @@ def get_response_text(evt, user):
 
 @handler.add(FollowEvent)
 def handle_follow(evt):
-    ChatHistory.objects.create(chat=str(evt))
     line_bot_api.reply_message(
         evt.reply_token,
         TextMessage(text="follow thx!")
