@@ -16,6 +16,7 @@ from linebot.models import (
 )
 import os
 import json
+from random import randint
 
 ACCESS_TOKEN = os.environ["MY_CHANNEL_ACCESS_TOKEN"]
 CHANNEL_SECRET = os.environ["MY_CHANNEL_SECRET"]
@@ -23,6 +24,7 @@ CHANNEL_SECRET = os.environ["MY_CHANNEL_SECRET"]
 line_bot_api = LineBotApi(ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
+post_user_state = {}
 # Create your views here.
 class CallbackView(View):
     def post(self, request):
@@ -33,7 +35,8 @@ class CallbackView(View):
             handler.handle(body, signature)
         except InvalidSignatureError:
             return HttpResponse(status=400)
-        print(body)
+
+        ChatHistory.objects.create(chat=json.loads(body))
 
         return HttpResponse(status=200)
     
@@ -43,11 +46,11 @@ class CallbackView(View):
 
 @handler.add(MessageEvent)
 def handle_message(evt):
-    evt_chat = json.loads(str(evt))
-    old_chat = ChatHistory.objects.filter(chat__contains={"source":{"userId":evt_chat['source']['userId']}}).last()
-    ChatHistory.objects.create(chat=evt_chat)
+    if evt.source.user_id not in post_user_state:
+        post_user_state[evt.source.user_id] = {"state": None, "bit_state": 16}
+    user = post_user_state[evt.source.user_id]
     try:
-        response_text = get_response_text(evt_chat, old_chat)
+        response_text = get_response_text(evt, user)
 
         line_bot_api.reply_message(
             evt.reply_token,
@@ -57,17 +60,56 @@ def handle_message(evt):
         import traceback
         traceback.print_exc()
 
-def get_response_text(evt_chat, old_chat):
+def get_response_text(evt, user):
     response_text = "none"
-    if evt_chat["message"]["text"] == ">>utf8-encode":
-        response_text = "応援ください！"
-    if old_chat is not None:
-        old_chat = old_chat.chat
-        if old_chat["type"] != "message":
-            return response_text
-        if old_chat["message"]["text"] == ">>utf8-encode":
-            response_text = evt_chat["message"]["text"].encode('utf-8').hex()
+    evt_text = evt.message.text
 
+    if user['state'] == ">> utf8-encode":
+        response_text = evt_text.encode('utf-8').hex()
+    elif user['state'] == ">> utf8-decode":
+        try:
+            response_text = bytes.fromhex(evt_text).decode('utf-8')
+        except:
+            response_text = "失敗しちゃった…"
+    elif user['state'] in [">> xy", ">> x/y", ">> x^y mod z"]:
+        try:
+            tmp = int(evt_text, user["bit_state"])
+        except ValueError:
+            response_text = f"{user['bit_state']}進数じゃないの入れたでしょ！？"
+        except:
+            response_text = "内部エラー"
+        if "x" not in user:
+            user["x"] = tmp
+            response_text = "yの値は?"
+        elif "y" not in user:
+            user["y"] = tmp
+            response_text = "zの値は?"
+            if user['state'] == ">> xy":
+                response_text = hex(user["x"]*user["y"])[2:]
+                user["state"] = None
+                del user["x"], user["y"]
+            elif user['state'] == ">> x/y":
+                response_text = hex(user["x"]//user["y"])[2:]
+                user["state"] = None
+                del user["x"], user["y"]
+        elif user["state"] == ">> x^y mod z":
+            response_text = hex(pow(user["x"], user["y"], tmp))
+            del user["x"], user["y"]
+
+    if evt_text == ">> utf8-encode":
+        response_text = "応援ください！"
+    elif evt_text == ">> utf8-decode":
+        response_text = "ガンバリマス！"
+    elif evt_text == ">> x^y mod z":
+        response_text = "xの値は?"
+    elif evt_text == ">> xy":
+        response_text = "xの値は?"
+    elif evt_text == ">> x/y":
+        response_text = "xの値は?"
+    else:
+        return response_text
+    
+    user['state'] = evt_text
     return response_text
 
 @handler.add(FollowEvent)
