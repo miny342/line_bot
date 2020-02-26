@@ -43,16 +43,32 @@ class CallbackView(View):
 
 @handler.add(MessageEvent)
 def handle_message(evt):
-    old_chat = ChatHistory.objects.filter(chat__contains={"source":{"userId":evt.source.userId}}).last().chat
-    ChatHistory.objects.create(chat=str(evt))
-    response_text = "test"
-    if old_chat["message"]["text"] == ">>utf8-encode":
-        response_text = "utf8"
+    evt_chat = json.loads(str(evt))
+    old_chat = ChatHistory.objects.filter(chat__contains={"source":{"userId":evt_chat['source']['userId']}}).last()
+    ChatHistory.objects.create(chat=evt_chat)
+    try:
+        response_text = get_response_text(evt_chat, old_chat)
 
-    line_bot_api.reply_message(
-        evt.reply_token,
-        TextMessage(text=response_text)
-    )
+        line_bot_api.reply_message(
+            evt.reply_token,
+            TextMessage(text=response_text)
+        )
+    except:
+        import traceback
+        traceback.print_exc()
+
+def get_response_text(evt_chat, old_chat):
+    response_text = "none"
+    if evt_chat["message"]["text"] == ">>utf8-encode":
+        response_text = "応援ください！"
+    if old_chat is not None:
+        old_chat = old_chat.chat
+        if old_chat["type"] != "message":
+            return response_text
+        if old_chat["message"]["text"] == ">>utf8-encode":
+            response_text = evt_chat["message"]["text"].encode('utf-8').hex()
+
+    return response_text
 
 @handler.add(FollowEvent)
 def handle_follow(evt):
