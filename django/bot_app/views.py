@@ -76,28 +76,29 @@ def get_response_text(evt, user):
     elif user['state'] in [">> xy", ">> x/y", ">> x^y mod z"]:
         try:
             tmp = int(evt_text, user["bit_state"])
+            if "x" not in user:
+                user["x"] = tmp
+                response_text = "yの値は?"
+            elif "y" not in user:
+                user["y"] = tmp
+                response_text = "zの値は?"
+                if user['state'] == ">> xy":
+                    response_text = hex(user["x"]*user["y"])[2:]
+                    user["state"] = None
+                    del user["x"], user["y"]
+                elif user['state'] == ">> x/y":
+                    response_text = hex(user["x"]//user["y"])[2:]
+                    user["state"] = None
+                    del user["x"], user["y"]
+            elif user["state"] == ">> x^y mod z":
+                response_text = hex(pow(user["x"], user["y"], tmp))[2:]
+                user["state"] = None
+                del user["x"], user["y"]
         except ValueError:
             response_text = f"{user['bit_state']}進数じゃないの入れたでしょ！？"
         except:
             response_text = "内部エラー"
-        if "x" not in user:
-            user["x"] = tmp
-            response_text = "yの値は?"
-        elif "y" not in user:
-            user["y"] = tmp
-            response_text = "zの値は?"
-            if user['state'] == ">> xy":
-                response_text = hex(user["x"]*user["y"])[2:]
-                user["state"] = None
-                del user["x"], user["y"]
-            elif user['state'] == ">> x/y":
-                response_text = hex(user["x"]//user["y"])[2:]
-                user["state"] = None
-                del user["x"], user["y"]
-        elif user["state"] == ">> x^y mod z":
-            response_text = hex(pow(user["x"], user["y"], tmp))[2:]
-            user["state"] == None
-            del user["x"], user["y"]
+
 
     if evt_text == ">> utf8-encode":
         response_text = "応援ください！"
